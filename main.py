@@ -4,26 +4,35 @@ from PyQt6.QtWidgets import QApplication
 from gui.disclaimer import DisclaimerWindow
 from gui.dashboard import Dashboard
 
-class AppController:
+class SentinelController:
     def __init__(self):
+        # 1. Create the application instance
         self.app = QApplication(sys.argv)
+        
+        # Use 'Fusion' style for a consistent look across different Windows versions
         self.app.setStyle("Fusion")
         
-        # Ensure pathing is correct for USB execution
+        # 2. Ensure the system path includes the current directory for USB portability
         current_dir = os.path.dirname(os.path.abspath(__file__))
         sys.path.append(current_dir)
 
-        # 1. Start with the Disclaimer
-        # We pass the show_dashboard function as a 'callback'
+        # 3. Initialize the Disclaimer (The Gatekeeper)
+        # We pass self.show_dashboard as the callback function
         self.disclaimer = DisclaimerWindow(on_accept_callback=self.show_dashboard)
         self.disclaimer.show()
         
+        # 4. Keep the app running
         sys.exit(self.app.exec())
 
     def show_dashboard(self):
-        # 2. Launch the Dashboard only after Consent
-        self.main_window = Dashboard()
-        self.main_window.show()
+        """
+        This method is triggered only when the user clicks 'I Agree' 
+        in the Disclaimer window.
+        """
+        # Initialize and show the main toolkit
+        self.main_toolkit = Dashboard()
+        self.main_toolkit.show()
 
 if __name__ == "__main__":
-    AppController()
+    # Start the controller
+    SentinelController()
