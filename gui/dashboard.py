@@ -1,12 +1,13 @@
 import sys
+import re
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, 
-                             QLabel, QProgressBar, QPushButton, QFrame, QMessageBox)
+                             QLabel, QProgressBar, QPushButton, QFrame, QLineEdit)
 from PyQt6.QtCore import Qt, QTimer
 
-# Import our scanning modules
 from modules.network_scan import scan_local_ports
 from modules.audit_check import check_windows_settings
 from modules.process_monitor import check_processes
+from modules.password_test import test_password_strength
 from gui.results_view import ResultsView
 
 class Dashboard(QWidget):
@@ -16,7 +17,7 @@ class Dashboard(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("Security Diagnostics Toolkit - Dashboard")
-        self.setFixedSize(600, 500)
+        self.setFixedSize(600, 600)
         self.setStyleSheet("background-color: #2b2b2b; color: #ffffff;")
         
         main_layout = QVBoxLayout()
@@ -39,17 +40,21 @@ class Dashboard(QWidget):
         header_layout.addWidget(self.blinker)
         main_layout.addLayout(header_layout)
 
-        main_layout.addWidget(QLabel("Select our safety checks:"))
-        
+        main_layout.addWidget(QLabel("Step 1: System Safety Checks"))
         self.check_net = QCheckBox("Check for 'unlocked doors' (Ports)")
-        self.check_audit = QCheckBox("Review our computer's safety settings (Registry)")
+        self.check_audit = QCheckBox("Review computer safety settings (Registry)")
         self.check_proc = QCheckBox("Search for hidden programs (Processes)")
         
         for check in [self.check_net, self.check_audit, self.check_proc]:
             check.setStyleSheet("font-size: 14px; margin: 5px;")
             main_layout.addWidget(check)
 
-        main_layout.addStretch()
+        main_layout.addWidget(QLabel("\nStep 2: Password Strength Stress-Test"))
+        self.pass_input = QLineEdit()
+        self.pass_input.setPlaceholderText("Enter a password to test...")
+        self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.pass_input.setStyleSheet("padding: 10px; background: #44475a; border: none; border-radius: 5px;")
+        main_layout.addWidget(self.pass_input)
 
         self.status_label = QLabel("Ready to begin.")
         main_layout.addWidget(self.status_label)
@@ -74,31 +79,61 @@ class Dashboard(QWidget):
     def toggle_blinker(self):
         self.blinker.setVisible(not self.blinker.isVisible())
 
+    def validate_password(self, password):
+        findings = []
+        if len(password) < 8:
+            findings.append("Password is too short (Minimum 8 characters).")
+        if not re.search(r"[A-Z]", password):
+            findings.append("Password needs a capital letter.")
+        if not re.search(r"[a-z]", password):
+            findings.append("Password needs a lowercase letter.")
+        if not re.search(r"\d", password):
+            findings.append("Password needs a number.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            findings.append("Password needs a special character.")
+        return findings
+
     def run_checks(self):
         self.status_label.setText("Analyzing system...")
-        self.progress_bar.setValue(20)
+        self.progress_bar.setValue(10)
         
         all_findings = []
-        scores = {"Network": 33, "Audit": 33, "Processes": 34} # Starting base
+        scores = {"Network": 25, "Audit": 25, "Processes": 25, "Password": 25}
         
         if self.check_net.isChecked():
             deduction, findings = scan_local_ports()
             scores["Network"] -= deduction
             all_findings.extend(findings)
         
-        self.progress_bar.setValue(50)
+        self.progress_bar.setValue(30)
         
         if self.check_audit.isChecked():
             deduction, findings = check_windows_settings()
             scores["Audit"] -= deduction
             all_findings.extend(findings)
 
-        self.progress_bar.setValue(80)
+        self.progress_bar.setValue(50)
 
         if self.check_proc.isChecked():
             deduction, findings = check_processes()
             scores["Processes"] -= deduction
             all_findings.extend(findings)
+
+        self.progress_bar.setValue(70)
+
+        user_pass = self.pass_input.text()
+        if user_pass:
+            complexity_findings = self.validate_password(user_pass)
+            if complexity_findings:
+                scores["Password"] -= 15
+                all_findings.extend(complexity_findings)
+            
+            leak_deduction, leak_findings = test_password_strength(user_pass)
+            scores["Password"] -= leak_deduction
+            all_findings.extend(leak_findings)
+        else:
+            all_findings.append("No password was provided for testing.")
+            scores["Password"] = 0
 
         self.progress_bar.setValue(100)
         self.show_results(scores, all_findings)
