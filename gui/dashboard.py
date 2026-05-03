@@ -1,7 +1,13 @@
 import sys
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, 
-                             QLabel, QProgressBar, QPushButton, QFrame)
+                             QLabel, QProgressBar, QPushButton, QFrame, QMessageBox)
 from PyQt6.QtCore import Qt, QTimer
+
+# Import our scanning modules
+from modules.network_scan import scan_local_ports
+from modules.audit_check import check_windows_settings
+from modules.process_monitor import check_processes
+from gui.results_view import ResultsView
 
 class Dashboard(QWidget):
     def __init__(self):
@@ -38,9 +44,8 @@ class Dashboard(QWidget):
         self.check_net = QCheckBox("Check for 'unlocked doors' (Ports)")
         self.check_audit = QCheckBox("Review our computer's safety settings (Registry)")
         self.check_proc = QCheckBox("Search for hidden programs (Processes)")
-        self.check_pass = QCheckBox("Test if our passwords are easy to guess (RockYou)")
         
-        for check in [self.check_net, self.check_audit, self.check_proc, self.check_pass]:
+        for check in [self.check_net, self.check_audit, self.check_proc]:
             check.setStyleSheet("font-size: 14px; margin: 5px;")
             main_layout.addWidget(check)
 
@@ -61,12 +66,44 @@ class Dashboard(QWidget):
             QPushButton { background-color: #6272a4; color: white; padding: 15px; font-size: 16px; border-radius: 8px; }
             QPushButton:hover { background-color: #44475a; }
         """)
+        self.start_btn.clicked.connect(self.run_checks)
         main_layout.addWidget(self.start_btn)
 
         self.setLayout(main_layout)
 
     def toggle_blinker(self):
-        if self.blinker.isVisible():
-            self.blinker.hide()
-        else:
-            self.blinker.show()
+        self.blinker.setVisible(not self.blinker.isVisible())
+
+    def run_checks(self):
+        self.status_label.setText("Analyzing system...")
+        self.progress_bar.setValue(20)
+        
+        all_findings = []
+        scores = {"Network": 33, "Audit": 33, "Processes": 34} # Starting base
+        
+        if self.check_net.isChecked():
+            deduction, findings = scan_local_ports()
+            scores["Network"] -= deduction
+            all_findings.extend(findings)
+        
+        self.progress_bar.setValue(50)
+        
+        if self.check_audit.isChecked():
+            deduction, findings = check_windows_settings()
+            scores["Audit"] -= deduction
+            all_findings.extend(findings)
+
+        self.progress_bar.setValue(80)
+
+        if self.check_proc.isChecked():
+            deduction, findings = check_processes()
+            scores["Processes"] -= deduction
+            all_findings.extend(findings)
+
+        self.progress_bar.setValue(100)
+        self.show_results(scores, all_findings)
+
+    def show_results(self, scores, findings):
+        self.results_win = ResultsView(scores, findings)
+        self.results_win.show()
+        self.close()
