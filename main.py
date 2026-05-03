@@ -1,58 +1,29 @@
 import sys
 import os
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QPushButton
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
+from gui.disclaimer import DisclaimerWindow
 from gui.dashboard import Dashboard
 
-class DisclaimerWindow(QWidget):
+class AppController:
     def __init__(self):
-        super().__init__()
-        self.init_ui()
-
-    def init_ui(self):
-        self.setWindowTitle("Toolkit Consent")
-        self.setFixedSize(450, 350)
-        self.setStyleSheet("background-color: #2b2b2b; color: #ffffff;")
+        self.app = QApplication(sys.argv)
+        self.app.setStyle("Fusion")
         
-        layout = QVBoxLayout()
-        title = QLabel("Security Diagnostics Toolkit")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #50fa7b;")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title)
+        # Ensure pathing is correct for USB execution
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        sys.path.append(current_dir)
 
-        text = QLabel(
-            "This tool is for our local educational use.\n\n"
-            "• It only scans this computer.\n"
-            "• No data leaves this USB.\n"
-            "• Use it only on machines we have permission to test.\n\n"
-            "By clicking 'I Accept', we agree to these terms."
-        )
-        text.setWordWrap(True)
-        layout.addWidget(text)
+        # 1. Start with the Disclaimer
+        # We pass the show_dashboard function as a 'callback'
+        self.disclaimer = DisclaimerWindow(on_accept_callback=self.show_dashboard)
+        self.disclaimer.show()
+        
+        sys.exit(self.app.exec())
 
-        self.accept_btn = QPushButton("I Accept")
-        self.accept_btn.setStyleSheet("""
-            QPushButton { background-color: #50fa7b; color: #2b2b2b; font-weight: bold; padding: 10px; border-radius: 5px; }
-            QPushButton:hover { background-color: #40c060; }
-        """)
-        self.accept_btn.clicked.connect(self.launch_app)
-        layout.addWidget(self.accept_btn)
-
-        self.setLayout(layout)
-
-    def launch_app(self):
-        self.dashboard = Dashboard()
-        self.dashboard.show()
-        self.close()
+    def show_dashboard(self):
+        # 2. Launch the Dashboard only after Consent
+        self.main_window = Dashboard()
+        self.main_window.show()
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-    
-    # Ensure the app knows where to find our folders
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    sys.path.append(current_dir)
-    
-    win = DisclaimerWindow()
-    win.show()
-    sys.exit(app.exec())
+    AppController()
