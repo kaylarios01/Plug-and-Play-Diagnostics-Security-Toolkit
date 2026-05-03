@@ -1,173 +1,237 @@
 import sys
 import re
+import os
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, 
-                             QLabel, QProgressBar, QPushButton, QFrame, QLineEdit, QTabWidget)
+                             QLabel, QProgressBar, QPushButton, QFrame, QLineEdit, 
+                             QTabWidget, QScrollArea, QStackedWidget)
 from PyQt6.QtCore import Qt, QTimer
+
+# Modules
 from modules.network_scan import scan_local_ports
 from modules.audit_check import check_windows_settings
 from modules.process_monitor import check_processes
 from modules.password_test import test_password_strength
-from gui.results_view import ResultsView
 
 class Dashboard(QWidget):
     def __init__(self):
         super().__init__()
+        self.scan_history = []
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("Security Diagnostics Toolkit")
-        self.setFixedSize(650, 600)
+        self.setWindowTitle("Sentinel-X Diagnostics Suite")
+        self.setFixedSize(750, 700)
         
-        # --- DRACULA STYLING ---
+        # --- UNIFIED CYBER-GRID STYLING ---
         self.setStyleSheet("""
-            QWidget { background-color: #282a36; color: #f8f8f2; font-family: 'Segoe UI'; }
-            QTabWidget::pane { border: 1px solid #44475a; background: #282a36; border-radius: 10px; }
-            QTabBar::tab { background: #44475a; padding: 12px 30px; border-top-left-radius: 8px; border-top-right-radius: 8px; margin-right: 5px; }
-            QTabBar::tab:selected { background: #6272a4; color: #50fa7b; font-weight: bold; }
-            QLabel#WelcomeHeader { font-size: 26px; font-weight: bold; color: #50fa7b; margin-bottom: 5px; }
-            QFrame#Card { background-color: #383a59; border-radius: 12px; padding: 15px; }
-            QPushButton#ActionBtn { background-color: #6272a4; color: white; border-radius: 8px; padding: 15px; font-weight: bold; font-size: 14px; }
-            QPushButton#ActionBtn:hover { background-color: #50fa7b; color: #282a36; }
-            QLineEdit { background-color: #44475a; border: 2px solid #6272a4; border-radius: 6px; padding: 10px; }
+            QWidget { background-color: #1a1b26; color: #a9b1d6; font-family: 'Segoe UI', sans-serif; }
+            QTabWidget::pane { border: 1px solid #414868; background: #1a1b26; border-radius: 5px; top: -1px; }
+            QTabBar::tab { background: #24283b; padding: 15px 25px; border: 1px solid #414868; border-bottom: none; margin-right: 2px; color: #565f89; }
+            QTabBar::tab:selected { background: #414868; color: #7aa2f7; font-weight: bold; border-bottom: 2px solid #7aa2f7; }
+            
+            QLabel#MainTitle { font-size: 28px; font-weight: bold; color: #7aa2f7; letter-spacing: 2px; }
+            QLabel#Description { color: #565f89; font-style: italic; margin-bottom: 10px; }
+            
+            QFrame#ControlCard { background-color: #24283b; border-radius: 10px; padding: 20px; border: 1px solid #414868; }
+            
+            QPushButton#ActionBtn { background-color: #7aa2f7; color: #1a1b26; border-radius: 5px; padding: 12px; font-weight: bold; }
+            QPushButton#ActionBtn:hover { background-color: #bb9af7; }
+            
+            QLineEdit { background-color: #1a1b26; border: 1px solid #414868; border-radius: 4px; padding: 10px; color: #c0caf5; font-family: 'Consolas'; }
         """)
 
         layout = QVBoxLayout()
         
-        # --- WELCOME SECTION ---
-        welcome_frame = QVBoxLayout()
-        welcome_header = QLabel("WELCOME TO THE TOOLKIT")
-        welcome_header.setObjectName("WelcomeHeader")
-        welcome_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # --- HEADER ---
+        header = QVBoxLayout()
+        title = QLabel("SENTINEL-X SECURITY")
+        title.setObjectName("MainTitle")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         status_row = QHBoxLayout()
         self.blinker = QFrame()
-        self.blinker.setFixedSize(12, 12)
-        self.blinker.setStyleSheet("background-color: #50fa7b; border-radius: 6px;")
-        self.blink_timer = QTimer()
-        self.blink_timer.timeout.connect(self.toggle_blinker)
-        self.blink_timer.start(500)
-        
+        self.blinker.setFixedSize(10, 10)
+        self.blinker.setStyleSheet("background-color: #73daca; border-radius: 5px;")
         status_row.addStretch()
-        status_row.addWidget(QLabel("SYSTEM ENGINE ACTIVE"))
+        status_row.addWidget(QLabel("ENCRYPTED SESSION ACTIVE"))
         status_row.addWidget(self.blinker)
         status_row.addStretch()
         
-        welcome_frame.addWidget(welcome_header)
-        welcome_frame.addLayout(status_row)
-        layout.addLayout(welcome_frame)
+        header.addWidget(title)
+        header.addLayout(status_row)
+        layout.addLayout(header)
 
-        # --- TAB WIDGET ---
+        # --- TABS ---
         self.tabs = QTabWidget()
-        self.tabs.addTab(self.create_host_scan_tab(), "Host Scanning")
-        self.tabs.addTab(self.create_password_tab(), "Password Testing")
+        self.tabs.addTab(self.create_host_tab(), "HOST AUDIT")
+        self.tabs.addTab(self.create_password_tab(), "CREDENTIAL TEST")
+        self.tabs.addTab(self.create_results_tab(), "REVIEW LOGS")
         layout.addWidget(self.tabs)
 
         self.setLayout(layout)
+        
+        self.blink_timer = QTimer()
+        self.blink_timer.timeout.connect(self.toggle_blinker)
+        self.blink_timer.start(800)
 
     def toggle_blinker(self):
         curr = self.blinker.styleSheet()
-        self.blinker.setStyleSheet(f"background-color: {'transparent' if '#50fa7b' in curr else '#50fa7b'}; border-radius: 6px;")
+        self.blinker.setStyleSheet(f"background-color: {'transparent' if '#73daca' in curr else '#73daca'}; border-radius: 5px;")
 
     # --- TAB 1: HOST SCANNING ---
-    def create_host_scan_tab(self):
+    def create_host_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         
+        desc = QLabel("Analyze the local machine for configuration weaknesses and active threats.")
+        desc.setObjectName("Description")
+        layout.addWidget(desc)
+
+        # Card for Checkboxes with Descriptions
         card = QFrame()
-        card.setObjectName("Card")
-        card_layout = QVBoxLayout(card)
-        card_layout.addWidget(QLabel("SYSTEM VULNERABILITY CHECKS"))
+        card.setObjectName("ControlCard")
+        c_layout = QVBoxLayout(card)
+
+        # Port Scan
+        self.check_net = QCheckBox("Network Port Analysis")
+        self.check_net.setStyleSheet("font-weight: bold; color: #bb9af7;")
+        c_layout.addWidget(self.check_net)
+        c_layout.addWidget(QLabel("   - Scans for open 'doors' that hackers use to enter the system via the network."))
         
-        self.check_net = QCheckBox("Scan Local Network Ports")
-        self.check_audit = QCheckBox("Audit Registry Security Settings")
-        self.check_proc = QCheckBox("Deep Process Inspection")
+        # Registry Audit
+        self.check_audit = QCheckBox("Security Policy Audit")
+        self.check_audit.setStyleSheet("font-weight: bold; color: #bb9af7;")
+        c_layout.addWidget(self.check_audit)
+        c_layout.addWidget(QLabel("   - Reviews Windows settings like Firewall and Encryption status to ensure they are ON."))
         
-        for cb in [self.check_net, self.check_audit, self.check_proc]:
-            cb.setChecked(True)
-            card_layout.addWidget(cb)
-        
+        # Process Monitor
+        self.check_proc = QCheckBox("Malicious Process Inspection")
+        self.check_proc.setStyleSheet("font-weight: bold; color: #bb9af7;")
+        c_layout.addWidget(self.check_proc)
+        c_layout.addWidget(QLabel("   - Cross-references running programs against a list of known malware signatures."))
+
         layout.addWidget(card)
         layout.addStretch()
 
-        self.scan_btn = QPushButton("RUN HOST SCAN")
-        self.scan_btn.setObjectName("ActionBtn")
-        self.scan_btn.clicked.connect(self.run_host_checks)
-        layout.addWidget(self.scan_btn)
+        self.host_btn = QPushButton("INITIALIZE SYSTEM SCAN")
+        self.host_btn.setObjectName("ActionBtn")
+        self.host_btn.clicked.connect(self.run_host_logic)
+        layout.addWidget(self.host_btn)
         return tab
 
-    # --- TAB 2: PASSWORD TESTING ---
+    # --- TAB 2: PASSWORD TESTING (In-Page Results) ---
     def create_password_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
+        self.pass_widget = QStackedWidget()
         
+        # PAGE 1: INPUT
+        input_page = QWidget()
+        i_layout = QVBoxLayout(input_page)
+        
+        desc = QLabel("Stress-test passwords against common patterns and database leaks.")
+        desc.setObjectName("Description")
+        i_layout.addWidget(desc)
+
         card = QFrame()
-        card.setObjectName("Card")
-        card_layout = QVBoxLayout(card)
-        card_layout.addWidget(QLabel("STRESS-TEST CREDENTIALS"))
+        card.setObjectName("ControlCard")
+        c_layout = QVBoxLayout(card)
+        c_layout.addWidget(QLabel("ENTER CREDENTIALS (MASKED FOR PRIVACY)"))
         
         self.pass_input = QLineEdit()
-        self.pass_input.setPlaceholderText("Enter password here...")
-        self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)
-        card_layout.addWidget(self.pass_input)
+        self.pass_input.setEchoMode(QLineEdit.EchoMode.Password) # Prevent shoulder surfing
+        self.pass_input.setPlaceholderText("••••••••••••")
+        c_layout.addWidget(self.pass_input)
         
-        layout.addWidget(card)
-        layout.addStretch()
+        i_layout.addWidget(card)
+        i_layout.addStretch()
+        
+        btn = QPushButton("TEST PASSWORD STRENGTH")
+        btn.setObjectName("ActionBtn")
+        btn.clicked.connect(self.run_pass_logic)
+        i_layout.addWidget(btn)
+        
+        # PAGE 2: RESULTS
+        self.pass_res_page = QWidget()
+        self.pr_layout = QVBoxLayout(self.pass_res_page)
+        
+        self.pass_widget.addWidget(input_page)
+        self.pass_widget.addWidget(self.pass_res_page)
+        
+        return self.pass_widget
 
-        self.pass_btn = QPushButton("ANALYZE PASSWORD STRENGTH")
-        self.pass_btn.setObjectName("ActionBtn")
-        self.pass_btn.clicked.connect(self.run_password_only)
-        layout.addWidget(self.pass_btn)
+    # --- TAB 3: RESULTS REVIEW ---
+    def create_results_tab(self):
+        tab = QWidget()
+        self.res_layout = QVBoxLayout(tab)
+        self.res_log = QLabel("No scans performed in this session.")
+        self.res_log.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.res_layout.addWidget(self.res_log)
         return tab
 
     # --- LOGIC ---
-    def run_password_only(self):
-        user_pass = self.pass_input.text()
-        if not user_pass:
-            return
+    def run_pass_logic(self):
+        pw = self.pass_input.text()
+        if not pw: return
         
-        findings = []
+        # Logic
         score = 100
+        findings = []
+        if len(pw) < 10: 
+            findings.append("Vulnerability: Length below recommended 10-character threshold.")
+            score -= 30
         
-        # Complexity checks
-        if len(user_pass) < 8:
-            findings.append("Password: Too short (Under 8 chars).")
-            score -= 20
-        if not re.search(r"\d", user_pass):
-            findings.append("Password: No numbers detected.")
-            score -= 10
-            
-        # Leak test
-        d, f = test_password_strength(user_pass)
+        d, f = test_password_strength(pw)
         score -= d
         findings.extend(f)
-        
-        self.show_results({"Password Integrity": score}, findings)
 
-    def run_host_checks(self):
-        all_findings = []
-        scores = {}
+        # Build In-Page Result
+        for i in reversed(range(self.pr_layout.count())): 
+            self.pr_layout.itemAt(i).widget().setParent(None)
+
+        res_card = QFrame()
+        res_card.setObjectName("ControlCard")
+        v = QVBoxLayout(res_card)
         
-        if self.check_net.isChecked():
-            d, f = scan_local_ports()
-            scores["Network"] = 33 - d
-            all_findings.extend(f)
+        color = "#73daca" if score > 70 else "#f7768e"
+        header = QLabel(f"STRENGTH SCORE: {score}/100")
+        header.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {color};")
+        v.addWidget(header)
+        
+        for item in findings:
+            v.addWidget(QLabel(f"• {item}"))
             
+        self.pr_layout.addWidget(res_card)
+        
+        retry_btn = QPushButton("← ANALYZE ANOTHER PASSWORD")
+        retry_btn.setObjectName("ActionBtn")
+        retry_btn.clicked.connect(lambda: self.pass_widget.setCurrentIndex(0))
+        self.pr_layout.addWidget(retry_btn)
+        
+        self.pass_widget.setCurrentIndex(1)
+        self.update_history(f"Password Test: {score}/100")
+
+    def run_host_logic(self):
+        results = []
+        if self.check_net.isChecked():
+            _, f = scan_local_ports()
+            results.extend(f)
         if self.check_audit.isChecked():
-            d, f = check_windows_settings()
-            scores["Registry"] = 33 - d
-            all_findings.extend(f)
-
+            _, f = check_windows_settings()
+            results.extend(f)
         if self.check_proc.isChecked():
-            d, f = check_processes()
-            scores["Processes"] = 34 - d
-            # CRITICAL FIX: If points were lost but findings are empty, add a fallback message
-            if d > 0 and not f:
-                all_findings.append(f"Process Monitor: Identified {d} security risks in active tasks.")
-            all_findings.extend(f)
+            _, f = check_processes()
+            results.extend(f)
+            
+        self.update_history(f"Host Scan: {len(results)} findings identified.")
+        self.tabs.setCurrentIndex(2) # Switch to Review Logs tab
 
-        self.show_results(scores, all_findings)
-
-    def show_results(self, scores, findings):
-        self.results_win = ResultsView(scores, findings)
-        self.results_win.show()
-        self.hide()
+    def update_history(self, entry):
+        self.scan_history.append(entry)
+        # Refresh the Results Tab view
+        for i in reversed(range(self.res_layout.count())): 
+            self.res_layout.itemAt(i).widget().setParent(None)
+        
+        for item in self.scan_history:
+            lbl = QLabel(f"» {item}")
+            lbl.setStyleSheet("padding: 5px; border-bottom: 1px solid #414868;")
+            self.res_layout.addWidget(lbl)
+        self.res_layout.addStretch()
