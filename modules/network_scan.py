@@ -1,5 +1,18 @@
 import nmap
+import socket
 
+def quick_packet_sniff():
+    # This uses basic Python sockets (Zero install required)
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
+        s.bind(("0.0.0.0", 0))
+        s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
+        # Capture just 1 packet to prove we can see traffic
+        data = s.recvfrom(65565)
+        return f"Live Traffic detected: {len(data[0])} bytes captured via USB Socket."
+    except:
+        return "Passive Sniffing: Restricted (Requires Admin privileges to see host traffic)."
+        
 def scan_local_ports():
     target = "127.0.0.1"
     scanner = nmap.PortScanner()
