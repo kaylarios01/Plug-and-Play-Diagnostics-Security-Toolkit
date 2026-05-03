@@ -155,47 +155,101 @@ class Dashboard(QWidget):
         self.pr_layout.addWidget(back)
         self.pass_stack.setCurrentIndex(1)
 
-    def run_host_logic(self):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def run_host_logic(self):
+        # 1. Gather Metadata
+        timestamp = datetime.now().strftime("%H:%M:%S | %Y-%m-%d")
         hostname = platform.node()
         user = getpass.getuser()
         
         scan_types = []
         findings = []
-        if self.check_net.isChecked(): scan_types.append("Network"); _, f = scan_local_ports(); findings.extend(f)
-        if self.check_audit.isChecked(): scan_types.append("Audit"); _, f = check_windows_settings(); findings.extend(f)
-        if self.check_proc.isChecked(): scan_types.append("Processes"); _, f = check_processes(); findings.extend(f)
+        scores = {"Network": 33, "Registry": 33, "Processes": 34}
+        
+        # 2. Execute Scans
+        if self.check_net.isChecked():
+            scan_types.append("Network")
+            d, f = scan_local_ports()
+            scores["Network"] -= d
+            findings.extend(f)
+            
+        if self.check_audit.isChecked():
+            scan_types.append("Audit")
+            d, f = check_windows_settings()
+            scores["Registry"] -= d
+            findings.extend(f)
 
-        # Save to History
+        if self.check_proc.isChecked():
+            scan_types.append("Processes")
+            d, f = check_processes()
+            scores["Processes"] -= d
+            findings.extend(f)
+
+        # 3. Save to History (Consolidated)
         scan_data = {
-            "time": timestamp,
-            "host": hostname,
-            "user": user,
-            "types": ", ".join(scan_types),
-            "findings": findings
+            "title": f"Host Audit [{timestamp}]",
+            "metadata": f"User: {user} | Host: {hostname} | Modules: {', '.join(scan_types)}",
+            "findings": findings,
+            "scores": scores
         }
         self.scan_history.append(scan_data)
         self.refresh_history_ui()
-        self.tabs.setCurrentIndex(2)
+
+        # 4. Show Results Immediately (Popup)
+        self.show_host_results(scores, findings)
+
+    def show_host_results(self, scores, findings):
+        # Using your existing ResultsView but ensuring it matches the theme
+        from gui.results_view import ResultsView
+        self.res_win = ResultsView(scores, findings)
+        self.res_win.setStyleSheet("background-color: #1a1b26; color: #a9b1d6;")
+        self.res_win.show()
 
     def refresh_history_ui(self):
+        # Clear existing
         for i in reversed(range(self.scroll_vbox.count())): 
             widget = self.scroll_vbox.itemAt(i).widget()
             if widget: widget.setParent(None)
             
+        # Add consolidated cards
         for scan in reversed(self.scan_history):
-            log_item = QFrame(); log_item.setObjectName("ControlCard")
-            l = QVBoxLayout(log_item)
-            l.addWidget(QLabel(f"TIMESTAMP: {scan['time']}"))
-            l.addWidget(QLabel(f"USER/HOST: {scan['user']} @ {scan['host']}"))
-            l.addWidget(QLabel(f"SCANS RUN: {scan['types']}"))
+            log_card = QFrame()
+            log_card.setObjectName("ControlCard")
+            log_card.setStyleSheet("margin-bottom: 5px; padding: 10px;") # Tighter spacing
             
-            btn = QPushButton("VIEW FULL RESULTS PDF/REPORT")
-            btn.setFixedWidth(250)
-            btn.setStyleSheet("background: #414868; color: #7aa2f7; border: 1px solid #7aa2f7;")
-            btn.clicked.connect(lambda checked, s=scan: self.open_full_report(s))
-            l.addWidget(btn)
-            self.scroll_vbox.addWidget(log_item)
+            h_layout = QHBoxLayout(log_card)
+            
+            # Text Info (Left Side)
+            text_layout = QVBoxLayout()
+            title_lbl = QLabel(scan['title'])
+            title_lbl.setStyleSheet("font-weight: bold; color: #7aa2f7; font-size: 14px;")
+            meta_lbl = QLabel(scan['metadata'])
+            meta_lbl.setStyleSheet("color: #565f89; font-size: 12px;")
+            
+            text_layout.addWidget(title_lbl)
+            text_layout.addWidget(meta_lbl)
+            
+            # Buttons (Right Side)
+            btn_layout = QVBoxLayout()
+            view_btn = QPushButton("VIEW RESULTS")
+            view_btn.setFixedSize(120, 30)
+            view_btn.setStyleSheet("background: #414868; color: #7aa2f7; font-size: 11px; border-radius: 4px;")
+            view_btn.clicked.connect(lambda checked, s=scan: self.show_host_results(s['scores'], s['findings']))
+            
+            pdf_btn = QPushButton("DOWNLOAD PDF")
+            pdf_btn.setFixedSize(120, 30)
+            pdf_btn.setStyleSheet("background: #24283b; color: #cfc9c2; font-size: 11px; border: 1px solid #414868;")
+            pdf_btn.clicked.connect(lambda: print("PDF Export Triggered...")) # Placeholder for PDF logic
+            
+            btn_layout.addWidget(view_btn)
+            btn_layout.addWidget(pdf_btn)
+            
+            h_layout.addLayout(text_layout)
+            h_layout.addStretch()
+            h_layout.addLayout(btn_layout)
+            
+            self.scroll_vbox.addWidget(log_card)
+        
+        self.scroll_vbox.addStretch()
 
     def open_full_report(self, scan):
         # This can launch your existing ResultsView window with the specific scan data
