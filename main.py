@@ -31,7 +31,10 @@ class DisclaimerWindow(QWidget):
         layout.addWidget(text)
 
         self.accept_btn = QPushButton("I Accept")
-        self.accept_btn.setStyleSheet("background-color: #50fa7b; color: #2b2b2b; font-weight: bold; padding: 10px; border-radius: 5px;")
+        self.accept_btn.setStyleSheet("""
+            QPushButton { background-color: #50fa7b; color: #2b2b2b; font-weight: bold; padding: 10px; border-radius: 5px; }
+            QPushButton:hover { background-color: #40c060; }
+        """)
         self.accept_btn.clicked.connect(self.launch_app)
         layout.addWidget(self.accept_btn)
 
@@ -45,6 +48,11 @@ class DisclaimerWindow(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    
+    # Ensure the app knows where to find our folders
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    sys.path.append(current_dir)
+    
     win = DisclaimerWindow()
     win.show()
     sys.exit(app.exec())
