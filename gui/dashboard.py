@@ -75,23 +75,48 @@ class Dashboard(QWidget):
         return tab
 
     # --- PASSWORD TAB (WITH FIXES) ---
-    def create_password_tab(self):
+ def create_password_tab(self):
         self.pass_stack = QStackedWidget()
         
-        # Page 1: Input
-        p1 = QWidget(); l1 = QVBoxLayout(p1)
-        card = QFrame(); card.setObjectName("ControlCard"); cl = QVBoxLayout(card)
-        cl.addWidget(QLabel("ENTER PASSWORD (MASKED)"))
-        self.pass_input = QLineEdit(); self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)
+        # --- Page 1: Input ---
+        p1 = QWidget()
+        l1 = QVBoxLayout(p1)
+        l1.setSpacing(10)  # Controls space between card and button
+        l1.setContentsMargins(20, 20, 20, 20)
+        
+        desc = QLabel("Stress-test credentials against complexity rules and known leaks.")
+        desc.setStyleSheet("color: #565f89; font-style: italic; margin-bottom: 5px;")
+        l1.addWidget(desc)
+
+        # Input Card
+        card = QFrame()
+        card.setObjectName("ControlCard")
+        cl = QVBoxLayout(card)
+        
+        cl.addWidget(QLabel("ENTER CREDENTIALS (MASKED)"))
+        self.pass_input = QLineEdit()
+        self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.pass_input.setPlaceholderText("••••••••••••")
         cl.addWidget(self.pass_input)
-        l1.addWidget(card); l1.addStretch()
-        btn = QPushButton("RUN ANALYSIS"); btn.setObjectName("ActionBtn")
-        btn.clicked.connect(self.run_pass_logic); l1.addWidget(btn)
         
-        # Page 2: Results
-        self.pass_res_page = QWidget(); self.pr_layout = QVBoxLayout(self.pass_res_page)
+        l1.addWidget(card)
         
-        self.pass_stack.addWidget(p1); self.pass_stack.addWidget(self.pass_res_page)
+        # Action Button (Now sits right under the card)
+        btn = QPushButton("RUN ANALYSIS")
+        btn.setObjectName("ActionBtn")
+        btn.clicked.connect(self.run_pass_logic)
+        l1.addWidget(btn)
+        
+        l1.addStretch() # Pushes everything to the top together
+
+        # --- Page 2: Results ---
+        self.pass_res_page = QWidget()
+        self.pr_layout = QVBoxLayout(self.pass_res_page)
+        self.pr_layout.setContentsMargins(20, 20, 20, 20)
+        
+        self.pass_stack.addWidget(p1)
+        self.pass_stack.addWidget(self.pass_res_page)
+        
         return self.pass_stack
 
     # --- HISTORY TAB ---
@@ -205,52 +230,53 @@ def run_host_logic(self):
         self.res_win.show()
 
     def refresh_history_ui(self):
-        # Clear existing
+        # Clear the old entries
         for i in reversed(range(self.scroll_vbox.count())): 
             widget = self.scroll_vbox.itemAt(i).widget()
             if widget: widget.setParent(None)
             
-        # Add consolidated cards
         for scan in reversed(self.scan_history):
             log_card = QFrame()
             log_card.setObjectName("ControlCard")
-            log_card.setStyleSheet("margin-bottom: 5px; padding: 10px;") # Tighter spacing
-            
+            # Horizontal layout to put text on left and buttons on right
             h_layout = QHBoxLayout(log_card)
             
-            # Text Info (Left Side)
-            text_layout = QVBoxLayout()
-            title_lbl = QLabel(scan['title'])
-            title_lbl.setStyleSheet("font-weight: bold; color: #7aa2f7; font-size: 14px;")
-            meta_lbl = QLabel(scan['metadata'])
-            meta_lbl.setStyleSheet("color: #565f89; font-size: 12px;")
+            # Left: Metadata Info
+            info_layout = QVBoxLayout()
+            title = QLabel(scan['title'])
+            title.setStyleSheet("font-weight: bold; color: #7aa2f7; font-size: 14px;")
             
-            text_layout.addWidget(title_lbl)
-            text_layout.addWidget(meta_lbl)
+            meta = QLabel(scan['metadata'])
+            meta.setStyleSheet("color: #565f89; font-size: 11px;")
+            meta.setWordWrap(True)
             
-            # Buttons (Right Side)
+            info_layout.addWidget(title)
+            info_layout.addWidget(meta)
+            
+            # Right: Action Buttons
             btn_layout = QVBoxLayout()
+            
             view_btn = QPushButton("VIEW RESULTS")
-            view_btn.setFixedSize(120, 30)
-            view_btn.setStyleSheet("background: #414868; color: #7aa2f7; font-size: 11px; border-radius: 4px;")
+            view_btn.setFixedSize(130, 28)
+            view_btn.setStyleSheet("background: #414868; color: #7aa2f7; font-size: 10px; font-weight: bold;")
+            # Links back to the results view popup
             view_btn.clicked.connect(lambda checked, s=scan: self.show_host_results(s['scores'], s['findings']))
             
             pdf_btn = QPushButton("DOWNLOAD PDF")
-            pdf_btn.setFixedSize(120, 30)
-            pdf_btn.setStyleSheet("background: #24283b; color: #cfc9c2; font-size: 11px; border: 1px solid #414868;")
-            pdf_btn.clicked.connect(lambda: print("PDF Export Triggered...")) # Placeholder for PDF logic
+            pdf_btn.setFixedSize(130, 28)
+            pdf_btn.setStyleSheet("background: #1a1b26; color: #a9b1d6; font-size: 10px; border: 1px solid #414868;")
+            pdf_btn.clicked.connect(lambda: print("Exporting PDF...")) # Logic for PDF goes here
             
             btn_layout.addWidget(view_btn)
             btn_layout.addWidget(pdf_btn)
             
-            h_layout.addLayout(text_layout)
-            h_layout.addStretch()
-            h_layout.addLayout(btn_layout)
+            h_layout.addLayout(info_layout, stretch=3)
+            h_layout.addLayout(btn_layout, stretch=1)
             
             self.scroll_vbox.addWidget(log_card)
         
         self.scroll_vbox.addStretch()
-
+      
     def open_full_report(self, scan):
         # This can launch your existing ResultsView window with the specific scan data
         from gui.results_view import ResultsView
