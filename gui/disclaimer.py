@@ -1,3 +1,4 @@
+import sys
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFrame, QScrollArea
 from PyQt6.QtCore import Qt
 
@@ -8,59 +9,51 @@ class DisclaimerWindow(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("Sentinel-X | Legal Notice")
-        self.setFixedSize(600, 500)
+        self.setWindowTitle("Sentinel-X | Security Consent")
+        self.setFixedSize(550, 450)
         
-        # --- MATCHING SENTINEL-X STYLING ---
+        # --- TOKYO NIGHT / SENTINEL-X STYLING ---
         self.setStyleSheet("""
             QWidget { background-color: #1a1b26; color: #a9b1d6; font-family: 'Segoe UI'; }
-            QFrame#MainCard { background-color: #24283b; border-radius: 12px; border: 1px solid #414868; }
+            QFrame#MainCard { background-color: #24283b; border-radius: 12px; border: 1px solid #414868; padding: 20px; }
             QLabel#WarningTitle { font-size: 22px; font-weight: bold; color: #f7768e; letter-spacing: 1px; }
-            QPushButton#AcceptBtn { background-color: #73daca; color: #1a1b26; border-radius: 6px; padding: 12px; font-weight: bold; }
+            QPushButton#AcceptBtn { background-color: #73daca; color: #1a1b26; border-radius: 6px; padding: 15px; font-weight: bold; font-size: 14px; }
             QPushButton#AcceptBtn:hover { background-color: #9ece6a; }
-            QScrollArea { border: none; background-color: transparent; }
         """)
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setContentsMargins(25, 25, 25, 25)
 
-        # Main Container
         card = QFrame()
         card.setObjectName("MainCard")
         card_layout = QVBoxLayout(card)
 
-        # Header
         title = QLabel("ETHICAL USAGE AGREEMENT")
         title.setObjectName("WarningTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(title)
 
-        # Scrollable Disclaimer Text
-        scroll = QScrollArea()
-        content = QLabel(
-            "This toolkit is designed for AUTHORIZED security auditing and educational "
-            "purposes ONLY.\n\n"
+        text = QLabel(
+            "This toolkit is designed for AUTHORIZED security auditing and educational purposes only.\n\n"
             "By proceeding, you acknowledge:\n"
-            "1. You have explicit permission to audit the host system.\n"
-            "2. You will not use these tools for malicious intent.\n"
-            "3. The developers are not responsible for any misuse or damage.\n\n"
-            "Sentinel-X is a 'Zero-Footprint' utility. No data is transmitted externally."
+            "• You have explicit permission to audit this host system.\n"
+            "• You will not use these tools for malicious intent or unauthorized access.\n"
+            "• Sentinel-X operates as a 'Zero-Footprint' utility; no data is sent externally.\n\n"
+            "The developers are not responsible for any misuse or system damage."
         )
-        content.setWordWrap(True)
-        content.setStyleSheet("font-size: 13px; line-height: 1.5; color: #c0caf5;")
-        scroll.setWidget(content)
-        card_layout.addWidget(scroll)
-
+        text.setWordWrap(True)
+        text.setStyleSheet("font-size: 13px; line-height: 1.6; color: #c0caf5; margin-top: 10px;")
+        card_layout.addWidget(text)
+        
         layout.addWidget(card)
 
-        # Accept Button
-        self.btn = QPushButton("I AGREE & INITIALIZE SYSTEM")
-        self.btn.setObjectName("AcceptBtn")
-        self.btn.clicked.connect(self.accept_terms)
-        layout.addWidget(self.btn)
+        self.accept_btn = QPushButton("I AGREE & INITIALIZE SYSTEM")
+        self.accept_btn.setObjectName("AcceptBtn")
+        self.accept_btn.clicked.connect(self.handle_accept)
+        layout.addWidget(self.accept_btn)
 
         self.setLayout(layout)
 
-    def accept_terms(self):
-        self.on_accept()
+    def handle_accept(self):
+        self.on_accept() # Triggers the dashboard launch
         self.close()
