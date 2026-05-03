@@ -3,7 +3,6 @@ import re
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, 
                              QLabel, QProgressBar, QPushButton, QFrame, QLineEdit)
 from PyQt6.QtCore import Qt, QTimer
-
 from modules.network_scan import scan_local_ports
 from modules.audit_check import check_windows_settings
 from modules.process_monitor import check_processes
@@ -17,141 +16,219 @@ class Dashboard(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("Security Diagnostics Toolkit")
-        self.setFixedSize(600, 600)
-        self.setStyleSheet("background-color: #2b2b2b; color: #ffffff;")
+        self.setFixedSize(620, 650)
         
-        main_layout = QVBoxLayout()
+        # --- GLOBAL STYLING (DRACULA THEME) ---
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #282a36;
+                color: #f8f8f2;
+                font-family: 'Segoe UI', Arial;
+            }
+            QLabel#HeaderTitle {
+                font-size: 22px;
+                font-weight: bold;
+                color: #50fa7b;
+            }
+            QLabel#SectionLabel {
+                font-size: 14px;
+                font-weight: bold;
+                color: #bd93f9;
+                margin-top: 10px;
+            }
+            QFrame#Card {
+                background-color: #383a59;
+                border-radius: 12px;
+                border: 1px solid #44475a;
+            }
+            QLineEdit {
+                background-color: #44475a;
+                border: 2px solid #6272a4;
+                border-radius: 6px;
+                padding: 10px;
+                color: #f8f8f2;
+            }
+            QCheckBox {
+                font-size: 13px;
+                spacing: 8px;
+            }
+            QPushButton#PrimaryBtn {
+                background-color: #6272a4;
+                border-radius: 8px;
+                padding: 12px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton#PrimaryBtn:hover {
+                background-color: #50fa7b;
+                color: #282a36;
+            }
+            QPushButton#CheckBtn {
+                background-color: #50fa7b;
+                color: #282a36;
+                border-radius: 6px;
+                font-weight: bold;
+            }
+            QPushButton#CheckBtn:hover {
+                background-color: #40c462;
+            }
+        """)
 
-        # Header (Stable Blinker)
-        header_layout = QHBoxLayout()
-        title = QLabel("System Control Center")
-        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #50fa7b;")
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(25, 25, 25, 25)
+        main_layout.setSpacing(15)
+
+        # --- HEADER ---
+        header = QHBoxLayout()
+        title = QLabel("SECURITY CONTROL")
+        title.setObjectName("HeaderTitle")
+        
+        # Stable Blinker logic
         self.blinker = QFrame()
-        self.blinker.setFixedSize(12, 12)
-        self.blinker.setStyleSheet("background-color: #50fa7b; border-radius: 6px;")
+        self.blinker.setFixedSize(14, 14)
+        self.blinker.setStyleSheet("background-color: #50fa7b; border-radius: 7px;")
         self.blink_timer = QTimer()
         self.blink_timer.timeout.connect(self.toggle_blinker)
-        self.blink_timer.start(500)
-        header_layout.addWidget(title)
-        header_layout.addStretch()
-        header_layout.addWidget(QLabel("Live Traffic:"))
-        header_layout.addWidget(self.blinker)
-        main_layout.addLayout(header_layout)
+        self.blink_timer.start(600)
+        
+        header.addWidget(title)
+        header.addStretch()
+        header.addWidget(QLabel("LIVE STATUS:"))
+        header.addWidget(self.blinker)
+        main_layout.addLayout(header)
 
-        # Step 1: System Scans
-        main_layout.addWidget(QLabel("Step 1: System Safety Checks"))
-        self.check_net = QCheckBox("Check for 'unlocked doors' (Ports)")
-        self.check_audit = QCheckBox("Review computer safety settings (Registry)")
-        self.check_proc = QCheckBox("Search for hidden programs (Processes)")
-        for check in [self.check_net, self.check_audit, self.check_proc]:
-            check.setStyleSheet("font-size: 14px; margin: 5px;")
-            main_layout.addWidget(check)
+        # --- SECTION 1: SYSTEM SCANS CARD ---
+        system_card = QFrame()
+        system_card.setObjectName("Card")
+        system_layout = QVBoxLayout(system_card)
+        
+        system_layout.addWidget(QLabel("SYSTEM VULNERABILITY SCANS"))
+        self.check_net = QCheckBox("Scan Local Network Ports (Nmap)")
+        self.check_audit = QCheckBox("Audit Security Configuration (Registry)")
+        self.check_proc = QCheckBox("Inspect Running Processes (Malware Check)")
+        
+        for cb in [self.check_net, self.check_audit, self.check_proc]:
+            system_layout.addWidget(cb)
+        
+        main_layout.addWidget(system_card)
 
-        # Step 2: Password Test with "Check" Button
-        main_layout.addWidget(QLabel("\nStep 2: Password Strength Stress-Test"))
-        pass_row = QHBoxLayout()
+        # --- SECTION 2: PASSWORD CARD ---
+        pass_card = QFrame()
+        pass_card.setObjectName("Card")
+        pass_layout = QVBoxLayout(pass_card)
+        
+        pass_layout.addWidget(QLabel("PASSWORD STRESS TEST"))
+        
+        pass_input_row = QHBoxLayout()
         self.pass_input = QLineEdit()
-        self.pass_input.setPlaceholderText("Type a password to test...")
+        self.pass_input.setPlaceholderText("Enter password to analyze...")
         self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.pass_input.setStyleSheet("padding: 10px; background: #44475a; border: none; border-radius: 5px;")
         
-        self.pass_check_btn = QPushButton("Check")
-        self.pass_check_btn.setFixedWidth(80)
-        self.pass_check_btn.setStyleSheet("background-color: #50fa7b; color: #2b2b2b; font-weight: bold; padding: 10px; border-radius: 5px;")
-        self.pass_check_btn.clicked.connect(self.run_password_only)
+        self.check_pass_btn = QPushButton("Check")
+        self.check_pass_btn.setObjectName("CheckBtn")
+        self.check_pass_btn.setFixedSize(80, 38)
+        self.check_pass_btn.clicked.connect(self.run_password_only)
         
-        pass_row.addWidget(self.pass_input)
-        pass_row.addWidget(self.pass_check_btn)
-        main_layout.addLayout(pass_row)
+        pass_input_row.addWidget(self.pass_input)
+        pass_input_row.addWidget(self.check_pass_btn)
+        pass_layout.addLayout(pass_input_row)
+        
+        main_layout.addWidget(pass_card)
 
-        self.status_label = QLabel("Ready to begin.")
+        # --- PROGRESS & STATUS ---
+        self.status_label = QLabel("System Ready")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(self.status_label)
-        
+
         self.progress_bar = QProgressBar()
-        self.progress_bar.setStyleSheet("QProgressBar { border: 2px solid #44475a; border-radius: 5px; text-align: center; } QProgressBar::chunk { background-color: #50fa7b; }")
+        self.progress_bar.setFixedHeight(12)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar { background-color: #44475a; border-radius: 6px; }
+            QProgressBar::chunk { background-color: #bd93f9; border-radius: 6px; }
+        """)
         main_layout.addWidget(self.progress_bar)
 
-        self.start_btn = QPushButton("Run Full Security Scan")
-        self.start_btn.setStyleSheet("QPushButton { background-color: #6272a4; color: white; padding: 15px; font-size: 16px; border-radius: 8px; }")
+        # --- MAIN ACTION BUTTON ---
+        self.start_btn = QPushButton("LAUNCH FULL DIAGNOSTIC")
+        self.start_btn.setObjectName("PrimaryBtn")
         self.start_btn.clicked.connect(self.run_full_checks)
         main_layout.addWidget(self.start_btn)
 
         self.setLayout(main_layout)
 
     def toggle_blinker(self):
-        current_style = self.blinker.styleSheet()
-        if "#50fa7b" in current_style:
-            self.blinker.setStyleSheet("background-color: transparent; border-radius: 6px;")
+        curr = self.blinker.styleSheet()
+        if "#50fa7b" in curr:
+            self.blinker.setStyleSheet("background-color: transparent; border-radius: 7px;")
         else:
-            self.blinker.setStyleSheet("background-color: #50fa7b; border-radius: 6px;")
+            self.blinker.setStyleSheet("background-color: #50fa7b; border-radius: 7px;")
 
     def validate_password(self, password):
-        # Explicit findings to ensure they show up in the report
         findings = []
-        if len(password) < 8: findings.append("Password Test: Failed (Less than 8 characters).")
-        if not re.search(r"[A-Z]", password): findings.append("Password Test: Missing an UPPERCASE letter.")
-        if not re.search(r"[a-z]", password): findings.append("Password Test: Missing a lowercase letter.")
-        if not re.search(r"\d", password): findings.append("Password Test: Missing a number.")
-        if not re.search(r"[!@#$%^&*()]", password): findings.append("Password Test: Missing a special character.")
+        if len(password) < 8: findings.append("Password Test: Too short (Under 8 chars).")
+        if not re.search(r"[A-Z]", password): findings.append("Password Test: Missing Uppercase.")
+        if not re.search(r"\d", password): findings.append("Password Test: Missing Number.")
+        if not re.search(r"[!@#$%^&*]", password): findings.append("Password Test: Missing Special Char.")
         return findings
 
     def run_password_only(self):
-        """Runs only the password test when the green 'Check' button is clicked."""
         user_pass = self.pass_input.text()
         if not user_pass:
-            self.status_label.setText("Please enter a password first!")
+            self.status_label.setText("Input required!")
             return
-            
+        
         all_findings = self.validate_password(user_pass)
         score = 100
-        if all_findings: score -= 50
+        if all_findings: score -= 40
         
-        leak_deduction, leak_findings = test_password_strength(user_pass)
-        score -= leak_deduction
+        deduction, leak_findings = test_password_strength(user_pass)
+        score -= deduction
         all_findings.extend(leak_findings)
         
-        # We pass a dummy score dict for the results view
-        self.show_results({"Password Only": score}, all_findings)
+        self.show_results({"Individual Password Test": score}, all_findings)
 
     def run_full_checks(self):
-        """Runs the entire suite and explains every deduction."""
-        self.status_label.setText("Analyzing...")
-        self.progress_bar.setValue(10)
+        self.status_label.setText("Executing Diagnostic...")
+        self.progress_bar.setValue(20)
         
         all_findings = []
         scores = {"Network": 25, "Audit": 25, "Processes": 25, "Password": 25}
         
+        # 1. Network
         if self.check_net.isChecked():
-            deduction, findings = scan_local_ports()
-            scores["Network"] -= deduction
-            all_findings.extend(findings)
-        
+            d, f = scan_local_ports()
+            scores["Network"] -= d
+            all_findings.extend(f)
+        self.progress_bar.setValue(40)
+
+        # 2. Audit
         if self.check_audit.isChecked():
-            deduction, findings = check_windows_settings()
-            scores["Audit"] -= deduction
-            # Ensure findings explain why points were lost
-            if not findings and scores["Audit"] < 25:
-                findings.append(f"Audit Check: Points deducted for security settings.")
-            all_findings.extend(findings)
+            d, f = check_windows_settings()
+            scores["Audit"] -= d
+            all_findings.extend(f)
+        self.progress_bar.setValue(60)
 
+        # 3. Processes
         if self.check_proc.isChecked():
-            deduction, findings = check_processes()
-            scores["Processes"] -= deduction
-            all_findings.extend(findings)
+            d, f = check_processes()
+            scores["Processes"] -= d
+            all_findings.extend(f)
+        self.progress_bar.setValue(80)
 
+        # 4. Password
         user_pass = self.pass_input.text()
         if user_pass:
-            p_findings = self.validate_password(user_pass)
-            if p_findings:
+            p_f = self.validate_password(user_pass)
+            if p_f:
                 scores["Password"] -= 10
-                all_findings.extend(p_findings)
-            
-            l_deduction, l_findings = test_password_strength(user_pass)
-            scores["Password"] -= l_deduction
-            all_findings.extend(l_findings)
+                all_findings.extend(p_f)
+            d, f = test_password_strength(user_pass)
+            scores["Password"] -= d
+            all_findings.extend(f)
         else:
-            all_findings.append("Password: No entry provided to test.")
             scores["Password"] = 0
+            all_findings.append("No password provided for the scan.")
 
         self.progress_bar.setValue(100)
         self.show_results(scores, all_findings)
