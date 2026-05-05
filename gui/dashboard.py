@@ -10,42 +10,27 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabe
                              QScrollArea, QApplication)
 from PyQt6.QtCore import Qt
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 # --- SAFE IMPORTS ---
 try:
     from modules.network_scan import scan_local_ports
-except ImportError:
-    scan_local_ports = None
-    print("Warning: network_scan module not found.")
-
-try:
     from modules.audit_check import check_windows_settings
-except ImportError:
-    check_windows_settings = None
-    print("Warning: audit_check module not found.")
-
-try:
     from modules.process_monitor import check_processes
-except ImportError:
-    check_processes = None
-    print("Warning: process_monitor module not found.")
-
-try:
     from modules.password_test import test_password_strength
-except ImportError:
-    test_password_strength = None
-    print("Warning: password_test module not found.")
-
-try:
     from modules.reporter import generate_pdf_report
-except ImportError:
-    generate_pdf_report = None
-    print("Warning: reporter module not found.")
-
-try:
     from modules.sniffer import start_sniffing
-except ImportError:
+except ImportError as e:
+    print(f"CRITICAL ERROR: Could not find a module. {e}")
+    scan_local_ports = None
+    check_windows_settings = None
+    check_processes = None
+    test_password_strength = None
+    generate_pdf_report = None
     start_sniffing = None
-    print("Warning: sniffer module not found. Install scapy: pip install scapy")
 
 class Dashboard(QWidget):
     def __init__(self):
@@ -180,12 +165,19 @@ class Dashboard(QWidget):
         timestamp = datetime.now().strftime("%H:%M:%S | %Y-%m-%d")
         findings = []
         
+        # SNIFFER LOGIC
         if self.check_sniff.isChecked() and start_sniffing is not None:
-            # We use threading.Thread to ensure the GUI doesn't freeze
             threading.Thread(target=start_sniffing, daemon=True).start()
             findings.append("Monitoring: Network Sniffer initialized.")
-        elif self.check_sniff.isChecked():
-             findings.append("Error: Sniffer module missing.")
+        
+        # SCAN EXECUTION
+        if self.check_net.isChecked() and scan_local_ports is not None:
+            _, net_f = scan_local_ports()
+            findings.extend(net_f)
+            
+        if self.check_proc.isChecked() and check_processes is not None:
+            _, proc_f = check_processes()
+            findings.extend(proc_f)
 
         scan_data = {
             "title": f"Host Audit [{timestamp}]",
