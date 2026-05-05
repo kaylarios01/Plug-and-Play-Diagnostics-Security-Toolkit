@@ -10,15 +10,42 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabe
                              QScrollArea, QApplication)
 from PyQt6.QtCore import Qt
 
+# --- SAFE IMPORTS ---
 try:
     from modules.network_scan import scan_local_ports
-    from modules.audit_check import check_windows_settings
-    from modules.process_monitor import check_processes
-    from modules.password_test import test_password_strength
-    from modules.reporter import generate_pdf_report
-    from modules.sniffer import start_sniffing # Added Sniffer module
 except ImportError:
-    print("Warning: Some modules could not be imported. Ensure 'modules' folder exists.")
+    scan_local_ports = None
+    print("Warning: network_scan module not found.")
+
+try:
+    from modules.audit_check import check_windows_settings
+except ImportError:
+    check_windows_settings = None
+    print("Warning: audit_check module not found.")
+
+try:
+    from modules.process_monitor import check_processes
+except ImportError:
+    check_processes = None
+    print("Warning: process_monitor module not found.")
+
+try:
+    from modules.password_test import test_password_strength
+except ImportError:
+    test_password_strength = None
+    print("Warning: password_test module not found.")
+
+try:
+    from modules.reporter import generate_pdf_report
+except ImportError:
+    generate_pdf_report = None
+    print("Warning: reporter module not found.")
+
+try:
+    from modules.sniffer import start_sniffing
+except ImportError:
+    start_sniffing = None
+    print("Warning: sniffer module not found. Install scapy: pip install scapy")
 
 class Dashboard(QWidget):
     def __init__(self):
@@ -68,7 +95,7 @@ class Dashboard(QWidget):
         self.check_net = QCheckBox("Network Port Analysis")
         self.check_audit = QCheckBox("Security Policy Audit")
         self.check_proc = QCheckBox("Process Inspection")
-        self.check_sniff = QCheckBox("Live Traffic Monitoring (Sniffer)") # Added Sniffer Checkbox
+        self.check_sniff = QCheckBox("Live Traffic Monitoring (Sniffer)")
         for cb in [self.check_net, self.check_audit, self.check_proc, self.check_sniff]:
             cl.addWidget(cb)
         l.addWidget(card)
@@ -153,10 +180,12 @@ class Dashboard(QWidget):
         timestamp = datetime.now().strftime("%H:%M:%S | %Y-%m-%d")
         findings = []
         
-        if self.check_sniff.isChecked():
-            # Run sniffer in a separate thread so GUI doesn't freeze
-            threading.Thread(target=start_sniffing, args=("eth0",), daemon=True).start()
-            findings.append("Monitoring: Network Sniffer initialized on eth0")
+        if self.check_sniff.isChecked() and start_sniffing is not None:
+            # We use threading.Thread to ensure the GUI doesn't freeze
+            threading.Thread(target=start_sniffing, daemon=True).start()
+            findings.append("Monitoring: Network Sniffer initialized.")
+        elif self.check_sniff.isChecked():
+             findings.append("Error: Sniffer module missing.")
 
         scan_data = {
             "title": f"Host Audit [{timestamp}]",
@@ -168,6 +197,9 @@ class Dashboard(QWidget):
         self.refresh_history_ui()
 
     def export_report(self, scan_data):
+        if generate_pdf_report is None:
+            print("Error: Reporter module not found.")
+            return
         try:
             os.makedirs("reports", exist_ok=True)
             path = generate_pdf_report(scan_data['scores'], scan_data['findings'])
