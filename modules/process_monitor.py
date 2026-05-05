@@ -1,17 +1,16 @@
 import psutil
 
 def check_processes():
-    blacklist = ["wireshark.exe", "nmap.exe", "putty.exe", "vncviewer.exe"]
+    suspicious_names = ['nc.exe', 'netcat', 'nmap', 'wireshark']
     findings = []
-    score_deduction = 0
+    danger_score = 0
     
-    for proc in psutil.process_iter(['name']):
+    for proc in psutil.process_iter(['pid', 'name', 'username']):
         try:
-            name = proc.info['name'].lower()
-            if name in blacklist:
-                findings.append(f"Suspicious program found running: {name}")
-                score_deduction += 15
+            pinfo = proc.info
+            if pinfo['name'].lower() in suspicious_names:
+                findings.append(f"WARNING: Suspicious process '{pinfo['name']}' (PID: {pinfo['pid']})")
+                danger_score += 20
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-            
-    return score_deduction, findings
+    return danger_score, findings
