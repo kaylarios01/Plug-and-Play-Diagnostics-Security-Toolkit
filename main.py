@@ -1,5 +1,18 @@
 import sys
 import os
+
+# 1. Force Python to look in the standard site-packages folder
+# This ensures it finds the 'nmap' library I just installed
+import site
+sys.path.extend(site.getsitepackages())
+
+# 2. Add my project root to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+import sys
+import os
 from PyQt6.QtWidgets import QApplication
 from gui.disclaimer import DisclaimerWindow
 from gui.dashboard import Dashboard
