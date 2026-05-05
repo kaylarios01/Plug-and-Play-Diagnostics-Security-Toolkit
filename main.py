@@ -9,13 +9,14 @@ class SentinelController:
         # 1. Create the application instance
         self.app = QApplication(sys.argv)
         
-        # Use 'Fusion' style for a consistent look across different Windows versions
+        # Use 'Fusion' style for a consistent look across different environments
         self.app.setStyle("Fusion")
         
         # 2. Ensure the system path includes the current directory for USB portability
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        sys.path.append(current_dir)
-
+        if current_dir not in sys.path:
+            sys.path.append(current_dir)
+            
         # 3. Initialize the Disclaimer (The Gatekeeper)
         # We pass self.show_dashboard as the callback function
         self.disclaimer = DisclaimerWindow(on_accept_callback=self.show_dashboard)
@@ -26,9 +27,12 @@ class SentinelController:
 
     def show_dashboard(self):
         """
-        This method is triggered only when the user clicks 'I Agree' 
-        in the Disclaimer window.
+        Triggered only when the user clicks 'I Agree'.
         """
+        # Close the disclaimer first
+        if hasattr(self, 'disclaimer'):
+            self.disclaimer.close()
+            
         # Initialize and show the main toolkit
         self.main_toolkit = Dashboard()
         self.main_toolkit.show()
