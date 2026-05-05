@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel, 
                              QPushButton, QFrame, QLineEdit, QTabWidget, QStackedWidget, 
-                             QScrollArea, QApplication, QProgressBar)
+                             QScrollArea, QApplication, QProgressBar, QComboBox)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
 
 # --- MODULE IMPORTS ---
@@ -39,8 +39,10 @@ class Dashboard(QWidget):
             QFrame#InfoBox { background-color: #1f2335; border-left: 4px solid #7aa2f7; padding: 10px; margin-bottom: 10px; }
             QPushButton#ActionBtn { background-color: #7aa2f7; color: #1a1b26; border-radius: 5px; padding: 12px; font-weight: bold; }
             QPushButton#ActionBtn:hover { background-color: #bb9af7; }
+            QPushButton#ResetBtn { background-color: #f7768e; color: #1a1b26; border-radius: 5px; padding: 5px; font-weight: bold; }
             QProgressBar { border: 1px solid #414868; border-radius: 5px; text-align: center; background-color: #24283b; height: 25px; }
             QProgressBar::chunk { background-color: #7aa2f7; width: 10px; }
+            QComboBox { background-color: #1a1b26; border: 1px solid #414868; padding: 5px; color: #c0caf5; }
         """)
 
         layout = QVBoxLayout()
@@ -57,25 +59,18 @@ class Dashboard(QWidget):
         self.setLayout(layout)
 
     def create_host_stack(self):
-        # Stacked widget to switch between "Configure" and "Results"
         self.host_stack = QStackedWidget()
-        
-        # PAGE 1: CONFIGURATION
         self.config_page = QWidget()
         cp_layout = QVBoxLayout(self.config_page)
-        
-        # Info Boxes
+
         cp_layout.addWidget(self.create_info_box("Network Port Analysis", "Scans for open TCP/UDP ports and identifies unencrypted services (Telnet/FTP)."))
         self.check_net = QCheckBox("Enable Network Scan"); cp_layout.addWidget(self.check_net)
-        
         cp_layout.addWidget(self.create_info_box("Security Policy Audit", "Checks OS registry and policies for firewall status and UAC settings."))
         self.check_audit = QCheckBox("Enable Policy Audit"); cp_layout.addWidget(self.check_audit)
-        
         cp_layout.addWidget(self.create_info_box("Process Inspection", "Profiles active memory to detect suspicious binaries or unauthorized tools."))
         self.check_proc = QCheckBox("Enable Process Scan"); cp_layout.addWidget(self.check_proc)
 
         cp_layout.addStretch()
-        
         self.progress = QProgressBar()
         self.progress.setValue(0)
         self.progress.hide()
@@ -86,10 +81,8 @@ class Dashboard(QWidget):
         self.scan_btn.clicked.connect(self.run_host_logic)
         cp_layout.addWidget(self.scan_btn)
 
-        # PAGE 2: RESULTS
         self.results_page = QWidget()
         self.res_layout = QVBoxLayout(self.results_page)
-        
         self.host_stack.addWidget(self.config_page)
         self.host_stack.addWidget(self.results_page)
         return self.host_stack
@@ -105,18 +98,13 @@ class Dashboard(QWidget):
     def run_host_logic(self):
         self.progress.show()
         self.scan_btn.setEnabled(False)
-        
-        # Simulate loading bar for the video demo
         def process_scan():
             for i in range(101):
                 time.sleep(0.03)
                 self.progress.setValue(i)
-            
-            # Perform actual logic
             findings = []
             if self.check_net.isChecked(): findings.extend(scan_local_ports()[1] if scan_local_ports else ["Nmap scan skipped"])
             if self.check_proc.isChecked(): findings.extend(check_processes()[1] if check_processes else ["Process scan skipped"])
-            
             timestamp = datetime.now().strftime("%H:%M:%S | %Y-%m-%d")
             scan_data = {
                 "title": f"Host Audit [{timestamp}]",
@@ -127,18 +115,13 @@ class Dashboard(QWidget):
             self.scan_history.append(scan_data)
             self.display_host_results(scan_data)
             self.refresh_history_ui()
-
         threading.Thread(target=process_scan).start()
 
     def display_host_results(self, scan):
-        # Clear old results
-        for i in reversed(range(self.res_layout.count())): 
-            self.res_layout.itemAt(i).widget().setParent(None)
-
+        for i in reversed(range(self.res_layout.count())): self.res_layout.itemAt(i).widget().setParent(None)
         res_card = QFrame(); res_card.setObjectName("ControlCard")
         v = QVBoxLayout(res_card)
         v.addWidget(QLabel(f"RESULTS: {scan['title']}").setStyleSheet("font-weight: bold; color: #7aa2f7;"))
-        
         scroll = QScrollArea()
         scroll_content = QWidget(); sv = QVBoxLayout(scroll_content)
         for f in scan['findings']:
@@ -146,35 +129,23 @@ class Dashboard(QWidget):
             sv.addWidget(lbl)
         scroll.setWidget(scroll_content); scroll.setWidgetResizable(True)
         v.addWidget(scroll)
-        
         self.res_layout.addWidget(res_card)
-        
         btn_box = QHBoxLayout()
-        pdf_btn = QPushButton("DOWNLOAD PDF REPORT")
-        pdf_btn.setObjectName("ActionBtn")
+        pdf_btn = QPushButton("DOWNLOAD PDF REPORT"); pdf_btn.setObjectName("ActionBtn")
         pdf_btn.clicked.connect(lambda: self.export_report(scan))
-        
-        back_btn = QPushButton("← BACK TO DASHBOARD")
-        back_btn.clicked.connect(self.reset_host_tab)
-        
-        btn_box.addWidget(back_btn)
-        btn_box.addWidget(pdf_btn)
+        back_btn = QPushButton("← BACK TO DASHBOARD"); back_btn.clicked.connect(self.reset_host_tab)
+        btn_box.addWidget(back_btn); btn_box.addWidget(pdf_btn)
         self.res_layout.addLayout(btn_box)
-        
         self.host_stack.setCurrentIndex(1)
 
     def reset_host_tab(self):
-        self.progress.hide()
-        self.progress.setValue(0)
-        self.scan_btn.setEnabled(True)
+        self.progress.hide(); self.progress.setValue(0); self.scan_btn.setEnabled(True)
         self.host_stack.setCurrentIndex(0)
 
-    # --- KEEPING YOUR EXISTING PASSWORD & HISTORY TABS ---
     def create_password_tab(self):
-        # [Pasted from your original code]
         self.pass_stack = QStackedWidget()
         p1 = QWidget(); l1 = QVBoxLayout(p1)
-        l1.addWidget(self.create_info_box("Credential Strength", "Checks against RockYou wordlists and complexity requirements."))
+        l1.addWidget(self.create_info_box("Credential Strength", "Checks against wordlists and complexity requirements."))
         card = QFrame(); card.setObjectName("ControlCard"); cl = QVBoxLayout(card)
         self.pass_input = QLineEdit(); self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)
         cl.addWidget(self.pass_input); l1.addWidget(card)
@@ -197,19 +168,79 @@ class Dashboard(QWidget):
         self.pr_layout.addWidget(back); self.pass_stack.setCurrentIndex(1)
 
     def create_history_tab(self):
-        tab = QWidget(); self.hist_layout = QVBoxLayout(tab)
+        tab = QWidget()
+        self.hist_layout = QVBoxLayout(tab)
+
+        # Filter Bar
+        filter_bar = QFrame()
+        filter_bar.setStyleSheet("background-color: #24283b; border-radius: 5px; border: 1px solid #414868;")
+        fb_layout = QHBoxLayout(filter_bar)
+
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search hostname, user...")
+        self.search_bar.textChanged.connect(self.refresh_history_ui)
+        fb_layout.addWidget(self.search_bar, stretch=2)
+
+        self.date_filter = QComboBox(); self.date_filter.addItems(["Newest First", "Oldest First"])
+        self.type_filter = QComboBox(); self.type_filter.addItems(["All Scans", "Host Audit", "Password Audit"])
+        self.risk_filter = QComboBox(); self.risk_filter.addItems(["All Risk", "High Risk", "Safe"])
+        
+        for w in [self.date_filter, self.type_filter, self.risk_filter]:
+            w.currentIndexChanged.connect(self.refresh_history_ui)
+            fb_layout.addWidget(w)
+
+        clear_btn = QPushButton("CLEAR"); clear_btn.setObjectName("ResetBtn")
+        clear_btn.clicked.connect(self.clear_all_filters)
+        fb_layout.addWidget(clear_btn)
+
+        self.hist_layout.addWidget(filter_bar)
+
         self.scroll = QScrollArea(); self.scroll_content = QWidget(); self.scroll_vbox = QVBoxLayout(self.scroll_content)
         self.scroll.setWidget(self.scroll_content); self.scroll.setWidgetResizable(True)
-        self.hist_layout.addWidget(self.scroll); return tab
+        self.hist_layout.addWidget(self.scroll)
+        return tab
+
+    def clear_all_filters(self):
+        self.search_bar.clear()
+        self.date_filter.setCurrentIndex(0); self.type_filter.setCurrentIndex(0); self.risk_filter.setCurrentIndex(0)
+        self.refresh_history_ui()
 
     def refresh_history_ui(self):
         for i in reversed(range(self.scroll_vbox.count())): 
             w = self.scroll_vbox.itemAt(i).widget()
             if w: w.setParent(None)
-        for scan in reversed(self.scan_history):
-            log_card = QFrame(); log_card.setObjectName("ControlCard"); h = QHBoxLayout(log_card)
-            info = QVBoxLayout(); info.addWidget(QLabel(scan['title'])); info.addWidget(QLabel(scan['metadata']))
-            h.addLayout(info); self.scroll_vbox.addWidget(log_card)
+
+        search = self.search_bar.text().lower()
+        stype = self.type_filter.currentText()
+        risk_lvl = self.risk_filter.currentText()
+
+        filtered = []
+        for s in self.scan_history:
+            score = sum(s['scores'].values())
+            match_search = search in s['title'].lower() or search in s['metadata'].lower()
+            match_type = stype == "All Scans" or stype.split()[0].lower() in s['title'].lower()
+            match_risk = True
+            if risk_lvl == "High Risk": match_risk = score < 50
+            elif risk_lvl == "Safe": match_risk = score > 80
+            
+            if match_search and match_type and match_risk:
+                filtered.append(s)
+
+        filtered.sort(key=lambda x: x['title'], reverse=(self.date_filter.currentIndex()==0))
+
+        for scan in filtered:
+            score = sum(scan['scores'].values())
+            color = "#f7768e" if score < 50 else "#73daca"
+            log_card = QFrame(); log_card.setObjectName("ControlCard")
+            log_card.setStyleSheet(f"border-left: 5px solid {color};")
+            h = QHBoxLayout(log_card)
+            info = QVBoxLayout()
+            t_lbl = QLabel(scan['title']); t_lbl.setStyleSheet(f"font-weight: bold; color: {color};")
+            info.addWidget(t_lbl); info.addWidget(QLabel(f"Score: {score}% | {scan['metadata']}"))
+            h.addLayout(info)
+            pdf_btn = QPushButton("PDF"); pdf_btn.clicked.connect(lambda checked, s=scan: self.export_report(s))
+            h.addWidget(pdf_btn)
+            self.scroll_vbox.addWidget(log_card)
         self.scroll_vbox.addStretch()
 
     def export_report(self, scan_data):
