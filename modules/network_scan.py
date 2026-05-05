@@ -1,32 +1,24 @@
 import nmap
-import socket
 
-def quick_packet_sniff():
-    # This uses basic Python sockets (Zero install required)
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_IP)
-        s.bind(("0.0.0.0", 0))
-        s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-        # Capture just 1 packet to prove we can see traffic
-        data = s.recvfrom(65565)
-        return f"Live Traffic detected: {len(data[0])} bytes captured via USB Socket."
-    except:
-        return "Passive Sniffing: Restricted (Requires Admin privileges to see host traffic)."
-        
-def scan_local_ports():
-    target = "127.0.0.1"
+def scan_local_ports(target_ip='127.0.0.1'):
     scanner = nmap.PortScanner()
-    findings = []
-    score_deduction = 0
+    # -sV: version detection, -sC: default scripts, -O: OS detection
+    scanner.scan(target_ip, arguments='-sV -sC -O')
     
-    try:
-        scanner.scan(target, '80,445,3389', arguments="-sV")
-        for port in [80, 445, 3389]:
-            if target in scanner.all_hosts() and scanner[target].has_tcp(port):
-                if scanner[target]['tcp'][port]['state'] == 'open':
-                    findings.append(f"Port {port} is open and listening.")
-                    score_deduction += 10
-    except Exception as e:
-        findings.append(f"Network scan error: {str(e)}")
-        
-    return score_deduction, findings
+    findings = []
+    danger_score = 0
+    
+    for host in scanner.all_hosts():
+        for proto in scanner[host].all_protocols():
+            ports = scanner[host][proto].keys()
+            for port in ports:
+                state = scanner[host][proto][port]['state']
+                service = scanner[host][proto][port]['name']
+                if state == 'open':
+                    # Flag unencrypted protocols specifically
+                    if service in ['telnet', 'ftp', 'http']:
+                        findings.append(f"CRITICAL: Unencrypted {service.upper()} found on port {port}")
+                        danger_score += 30
+                    else:
+                        findings.append(f"Info: Port {port} ({service}) is open")
+    return danger_score, findings
