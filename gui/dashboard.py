@@ -199,14 +199,49 @@ class Dashboard(QWidget):
     def run_pass_logic(self):
         pw = self.pass_input.text()
         if not pw: return
-        findings = ["Weakness: Length" if len(pw) < 8 else "Complexity: Valid"]
-        for i in reversed(range(self.pr_layout.count())): self.pr_layout.itemAt(i).widget().setParent(None)
-        res_card = QFrame(); res_card.setObjectName("ControlCard"); v = QVBoxLayout(res_card)
-        v.addWidget(QLabel("PASSWORD AUDIT RESULT"))
-        for f in findings: v.addWidget(QLabel(f"• {f}"))
+        
+        findings = []
+        score = 100
+
+        # --- 1. Internal Complexity Checks ---
+        if len(pw) < 10:
+            findings.append("Weakness: Length below 10 characters.")
+            score -= 20
+        if not re.search(r"[A-Z]", pw):
+            findings.append("Weakness: No uppercase letters.")
+            score -= 10
+        if not re.search(r"\d", pw):
+            findings.append("Weakness: No numbers.")
+            score -= 10
+
+        # --- 2. Call the RockYou Module ---
+        if test_password_strength:
+            deduction, leak_findings = test_password_strength(pw)
+            score -= deduction
+            findings.extend(leak_findings)
+
+        # --- 3. Update the UI ---
+        for i in reversed(range(self.pr_layout.count())):
+            self.pr_layout.itemAt(i).widget().setParent(None)
+
+        res_card = QFrame()
+        res_card.setObjectName("ControlCard")
+        v = QVBoxLayout(res_card)
+        
+        # Color coding the score
+        color = "#f7768e" if score < 60 else "#73daca"
+        score_lbl = QLabel(f"STRENGTH SCORE: {max(0, score)}/100")
+        score_lbl.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {color};")
+        v.addWidget(score_lbl)
+
+        for f in findings:
+            v.addWidget(QLabel(f"• {f}"))
+            
         self.pr_layout.addWidget(res_card)
-        back = QPushButton("← BACK"); back.clicked.connect(lambda: self.pass_stack.setCurrentIndex(0))
-        self.pr_layout.addWidget(back); self.pass_stack.setCurrentIndex(1)
+        back = QPushButton("← BACK")
+        back.clicked.connect(lambda: self.pass_stack.setCurrentIndex(0))
+        self.pr_layout.addWidget(back)
+        self.pass_stack.setCurrentIndex(1)
 
     def create_history_tab(self):
         tab = QWidget(); self.hist_layout = QVBoxLayout(tab)
