@@ -9,51 +9,62 @@ class DisclaimerWindow(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("Sentinel-X | Security Consent")
-        self.setFixedSize(550, 450)
+        self.setWindowTitle("CyberGuard Pro | Legal Authorization")
+        self.setFixedSize(600, 500)
         
-        # --- TOKYO NIGHT / SENTINEL-X STYLING ---
         self.setStyleSheet("""
             QWidget { background-color: #1a1b26; color: #a9b1d6; font-family: 'Segoe UI'; }
             QFrame#MainCard { background-color: #24283b; border-radius: 12px; border: 1px solid #414868; padding: 20px; }
-            QLabel#WarningTitle { font-size: 22px; font-weight: bold; color: #f7768e; letter-spacing: 1px; }
+            QLabel#WarningTitle { font-size: 20px; font-weight: bold; color: #f7768e; letter-spacing: 1px; }
             QPushButton#AcceptBtn { background-color: #73daca; color: #1a1b26; border-radius: 6px; padding: 15px; font-weight: bold; font-size: 14px; }
             QPushButton#AcceptBtn:hover { background-color: #9ece6a; }
         """)
 
         layout = QVBoxLayout()
-        layout.setContentsMargins(25, 25, 25, 25)
-
         card = QFrame()
         card.setObjectName("MainCard")
         card_layout = QVBoxLayout(card)
 
-        title = QLabel("ETHICAL USAGE AGREEMENT")
+        title = QLabel("LEGAL NOTICE & PRIVACY POLICY")
         title.setObjectName("WarningTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(title)
 
-        text = QLabel(
-            "This toolkit is designed for AUTHORIZED security auditing and educational purposes only.\n\n"
-            "By proceeding, you acknowledge:\n"
-            "• You have explicit permission to audit this host system.\n"
-            "• You will not use these tools for malicious intent or unauthorized access.\n"
-            "• Sentinel-X operates as a 'Zero-Footprint' utility; no data is sent externally.\n\n"
-            "The developers are not responsible for any misuse or system damage."
-        )
-        text.setWordWrap(True)
-        text.setStyleSheet("font-size: 13px; line-height: 1.6; color: #c0caf5; margin-top: 10px;")
-        card_layout.addWidget(text)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("border: none; background: transparent;")
         
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        
+        legal_text = QLabel(
+            "<b>1. AUTHORIZATION:</b> This toolkit is provided for professional security auditing. "
+            "By clicking 'I AGREE', you confirm that you have explicit, written permission to perform "
+            "diagnostic scans on this host and its associated network.<br><br>"
+            "<b>2. SCOPE OF WORK:</b> The diagnostics performed include port analysis, credential "
+            "complexity testing, and system process auditing. These actions can trigger security alerts "
+            "on managed networks.<br><br>"
+            "<b>3. LIABILITY:</b> The developers of CyberGuard Pro disclaim all liability for any "
+            "unauthorized use, data loss, or system instability resulting from the use of these tools. "
+            "The user assumes 100% of the risk associated with penetration testing and vulnerability assessment.<br><br>"
+            "<b>4. DATA PRIVACY:</b> This tool operates in an isolated environment. No data is harvested, "
+            "stored externally, or transmitted. All reports are saved locally to the persistent USB volume."
+        )
+        legal_text.setWordWrap(True)
+        legal_text.setStyleSheet("font-size: 13px; color: #c0caf5;")
+        content_layout.addWidget(legal_text)
+        scroll.setWidget(content)
+        card_layout.addWidget(scroll)
+
         layout.addWidget(card)
 
-        self.accept_btn = QPushButton("I AGREE & INITIALIZE SYSTEM")
+        self.accept_btn = QPushButton("I AGREE")
         self.accept_btn.setObjectName("AcceptBtn")
         self.accept_btn.clicked.connect(self.handle_accept)
         layout.addWidget(self.accept_btn)
-
+        
         self.setLayout(layout)
 
     def handle_accept(self):
-        self.on_accept() # Triggers the dashboard launch
+        self.on_accept()
         self.close()
